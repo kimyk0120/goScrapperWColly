@@ -3,46 +3,29 @@ package main
 import (
 	"fmt"
 	"github.com/gocolly/colly"
-	"log"
-
+	"github.com/gocolly/colly/debug"
 )
 
-func main(){
+func main() {
 	fmt.Println("scrapping /w colly start")
 
-	c := colly.NewCollector()
-
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL)
-	})
-
-	c.OnError(func(_ *colly.Response, err error) {
-		log.Println("Something went wrong:", err)
-	})
-
-	c.OnResponseHeaders(func(r *colly.Response) {
-		fmt.Println("Visited", r.Request.URL)
-	})
-
-	c.OnResponse(func(r *colly.Response) {
-		fmt.Println("Visited", r.Request.URL)
-	})
+	c := colly.NewCollector(colly.AllowedDomains("hackerspaces.org"), colly.Debugger(&debug.LogDebugger{}))
 
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		e.Request.Visit(e.Attr("href"))
+		link := e.Attr("href")
+		// Print link
+		fmt.Printf("Link found: %q -> %s\n", e.Text, link)
+		// Visit link found on page
+		// Only those links are visited which are in AllowedDomains
+		_ = c.Visit(e.Request.AbsoluteURL(link))
 	})
 
-	c.OnHTML("tr td:nth-of-type(1)", func(e *colly.HTMLElement) {
-		fmt.Println("First column of a table row:", e.Text)
+	// Before making a request print "Visiting ..."
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("Visiting", r.URL.String())
 	})
 
-	c.OnXML("//h1", func(e *colly.XMLElement) {
-		fmt.Println(e.Text)
-	})
-
-	c.OnScraped(func(r *colly.Response) {
-		fmt.Println("Finished", r.Request.URL)
-	})
-
+	// Start scraping on https://hackerspaces.org
+	_ = c.Visit("https://hackerspaces.org/")
 
 }
